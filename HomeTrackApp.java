@@ -1,7 +1,9 @@
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.sql.*;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -15,19 +17,26 @@ public class HomeTrackApp extends JFrame {
     private DashboardDAO dao;
 
     public HomeTrackApp() {
-        setTitle("HomeTrack: Household Asset Manager (CRUD Version)");
-        setSize(700, 500);
+        setTitle("HomeTrack: Household Asset Manager (MySQL Version)");
+        setSize(750, 550);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
+        setLocationRelativeTo(null);
 
         // Initialize DB and DAO
         DBManager.initializeDatabase();
         dao = new DashboardDAO();
 
         // Top Toolbar for CREATE operations
-        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JButton btnAddWarranty = new JButton("Add Warranty");
-        JButton btnAddEmi = new JButton("Add EMI");
+        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 10));
+        toolbar.setBackground(new Color(240, 248, 255));
+        
+        JButton btnAddWarranty = new JButton("➕ Add Warranty");
+        JButton btnAddEmi = new JButton("➕ Add EMI");
+        
+        styleButton(btnAddWarranty, new Color(70, 130, 180));
+        styleButton(btnAddEmi, new Color(70, 130, 180));
+
         toolbar.add(btnAddWarranty);
         toolbar.add(btnAddEmi);
         add(toolbar, BorderLayout.NORTH);
@@ -35,71 +44,111 @@ public class HomeTrackApp extends JFrame {
         // Dashboard Panel for READ operations
         dashboardPanel = new JPanel();
         dashboardPanel.setLayout(new BoxLayout(dashboardPanel, BoxLayout.Y_AXIS));
-        dashboardPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        add(new JScrollPane(dashboardPanel), BorderLayout.CENTER);
+        dashboardPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
+        dashboardPanel.setBackground(Color.WHITE);
+        
+        JScrollPane scrollPane = new JScrollPane(dashboardPanel);
+        scrollPane.setBorder(null);
+        add(scrollPane, BorderLayout.CENTER);
 
         // Event Listeners for CREATE
         btnAddWarranty.addActionListener(e -> showAddWarrantyDialog());
         btnAddEmi.addActionListener(e -> showAddEmiDialog());
 
-        // Initial Load
         refreshDashboard();
     }
+    
+    private void styleButton(JButton btn, Color bgColor) {
+    btn.setBackground(bgColor);
+    btn.setForeground(Color.WHITE);
+    btn.setFocusPainted(false);
+    btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+    
+    // Add these two lines to force the background color to render
+    btn.setOpaque(true);
+    btn.setBorderPainted(false);
+}
 
-    // --- READ (Refresh UI) ---
     private void refreshDashboard() {
         dashboardPanel.removeAll();
         
         JLabel title = new JLabel("Your Upcoming Due Dates");
-        title.setFont(new Font("Arial", Font.BOLD, 18));
-        dashboardPanel.add(title);
-        dashboardPanel.add(Box.createRigidArea(new Dimension(0, 15)));
+        title.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        title.setBorder(new EmptyBorder(0, 0, 15, 0));
+        
+        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        titlePanel.setBackground(Color.WHITE);
+        titlePanel.add(title);
+        titlePanel.setMaximumSize(new Dimension(800, 50));
+        dashboardPanel.add(titlePanel);
 
-        // Fetch from Database
         List<Reminder> reminders = dao.getAllReminders();
 
-        for (Reminder reminder : reminders) {
-            JPanel card = createReminderCard(reminder);
-            dashboardPanel.add(card);
-            dashboardPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        if (reminders.isEmpty()) {
+            JLabel emptyLabel = new JLabel("🎉 No reminders found! Add a Warranty or EMI to get started.");
+            emptyLabel.setFont(new Font("Segoe UI", Font.ITALIC, 14));
+            emptyLabel.setForeground(Color.GRAY);
+            dashboardPanel.add(emptyLabel);
+        } else {
+            for (Reminder reminder : reminders) {
+                dashboardPanel.add(createReminderCard(reminder));
+                dashboardPanel.add(Box.createRigidArea(new Dimension(0, 10))); 
+            }
         }
 
         dashboardPanel.revalidate();
         dashboardPanel.repaint();
     }
 
-    // Creates individual UI cards with UPDATE and DELETE buttons
     private JPanel createReminderCard(Reminder reminder) {
         JPanel card = new JPanel(new BorderLayout());
-        card.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200), 1, true),
+                new EmptyBorder(10, 15, 10, 15)
+        ));
         
-        JLabel nameLabel = new JLabel("  " + reminder.getItemName() + " (" + reminder.getCategory() + ")");
-        JLabel detailsLabel = new JLabel(reminder.getDetails() + "  ");
+        JPanel infoPanel = new JPanel();
+        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
+        infoPanel.setOpaque(false);
         
-        // Color Logic
+        JLabel nameLabel = new JLabel(reminder.getItemName() + " (" + reminder.getCategory() + ")");
+        nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        
+        JLabel detailsLabel = new JLabel(reminder.getDetails());
+        detailsLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        
         String status = reminder.getStatusColor();
-        if (status.equals("RED")) { card.setBackground(new Color(255, 200, 200)); nameLabel.setForeground(Color.RED); } 
-        else if (status.equals("ORANGE")) { card.setBackground(new Color(255, 235, 153)); } 
-        else { card.setBackground(new Color(200, 255, 200)); }
+        if (status.equals("RED")) { 
+            card.setBackground(new Color(255, 230, 230)); 
+            nameLabel.setForeground(new Color(180, 0, 0)); 
+        } 
+        else if (status.equals("ORANGE")) { 
+            card.setBackground(new Color(255, 245, 210)); 
+            nameLabel.setForeground(new Color(180, 100, 0));
+        } 
+        else { 
+            card.setBackground(new Color(230, 255, 230)); 
+            nameLabel.setForeground(new Color(0, 120, 0));
+        }
 
-        // Action Panel (Update / Delete)
+        infoPanel.add(nameLabel);
+        infoPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        infoPanel.add(detailsLabel);
+
         JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         actionPanel.setOpaque(false);
-        JButton btnEdit = new JButton("Edit");
-        JButton btnDelete = new JButton("Delete");
+        JButton btnEdit = new JButton("✏️ Edit");
+        JButton btnDelete = new JButton("🗑️ Delete");
 
-        // --- UPDATE ---
         btnEdit.addActionListener(e -> {
-            String newName = JOptionPane.showInputDialog(this, "Enter new name:", reminder.getItemName());
-            if (newName != null && !newName.trim().isEmpty()) {
-                dao.updateAssetName(reminder.getAssetId(), newName);
-                refreshDashboard();
-            }
+            if (reminder instanceof Warranty) showEditWarrantyDialog((Warranty) reminder);
+            else if (reminder instanceof Emi) showEditEmiDialog((Emi) reminder);
         });
 
-        // --- DELETE ---
         btnDelete.addActionListener(e -> {
-            int confirm = JOptionPane.showConfirmDialog(this, "Delete " + reminder.getItemName() + "?", "Confirm", JOptionPane.YES_NO_OPTION);
+            int confirm = JOptionPane.showConfirmDialog(this, 
+                    "Are you sure you want to delete '" + reminder.getItemName() + "'?", 
+                    "Confirm Deletion", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
             if (confirm == JOptionPane.YES_OPTION) {
                 dao.deleteAsset(reminder.getAssetId(), reminder.getCategory());
                 refreshDashboard();
@@ -108,29 +157,28 @@ public class HomeTrackApp extends JFrame {
 
         actionPanel.add(btnEdit);
         actionPanel.add(btnDelete);
-
-        card.add(nameLabel, BorderLayout.WEST);
-        card.add(detailsLabel, BorderLayout.CENTER);
+        card.add(infoPanel, BorderLayout.CENTER);
         card.add(actionPanel, BorderLayout.EAST);
-        card.setMaximumSize(new Dimension(800, 45));
+        card.setMaximumSize(new Dimension(800, 75));
 
         return card;
     }
 
-    // --- CREATE Dialogs ---
     private void showAddWarrantyDialog() {
         JTextField nameField = new JTextField();
-        JTextField dateField = new JTextField(LocalDate.now().toString()); // Format: YYYY-MM-DD
+        JTextField dateField = new JTextField(LocalDate.now().toString());
         JTextField monthsField = new JTextField();
         Object[] message = { "Product Name:", nameField, "Purchase Date (YYYY-MM-DD):", dateField, "Warranty Duration (Months):", monthsField };
 
-        int option = JOptionPane.showConfirmDialog(this, message, "Add New Warranty", JOptionPane.OK_CANCEL_OPTION);
+        int option = JOptionPane.showConfirmDialog(this, message, "Add New Warranty", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (option == JOptionPane.OK_OPTION) {
             try {
                 dao.addWarranty(nameField.getText(), LocalDate.parse(dateField.getText()), Integer.parseInt(monthsField.getText()));
                 refreshDashboard();
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Error: Check date format or number inputs.\n" + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            } catch (DateTimeParseException ex) {
+                JOptionPane.showMessageDialog(this, "Invalid Date Format. Please use YYYY-MM-DD.", "Error", JOptionPane.ERROR_MESSAGE);
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "Warranty Duration must be a valid number.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -141,62 +189,111 @@ public class HomeTrackApp extends JFrame {
         JTextField dayField = new JTextField();
         Object[] message = { "Loan/EMI Name:", nameField, "EMI Amount (Rs):", amountField, "Due Day of Month (1-31):", dayField };
 
-        int option = JOptionPane.showConfirmDialog(this, message, "Add New EMI", JOptionPane.OK_CANCEL_OPTION);
+        int option = JOptionPane.showConfirmDialog(this, message, "Add New EMI", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (option == JOptionPane.OK_OPTION) {
             try {
                 dao.addEmi(nameField.getText(), Double.parseDouble(amountField.getText()), Integer.parseInt(dayField.getText()));
                 refreshDashboard();
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "Amount and Day must be valid numbers.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void showEditWarrantyDialog(Warranty w) {
+        JTextField nameField = new JTextField(w.getItemName());
+        JTextField dateField = new JTextField(w.getPurchaseDate().toString());
+        JTextField monthsField = new JTextField(String.valueOf(w.getWarrantyMonths()));
+        Object[] message = { "Product Name:", nameField, "Purchase Date (YYYY-MM-DD):", dateField, "Warranty Duration (Months):", monthsField };
+
+        if (JOptionPane.showConfirmDialog(this, message, "Edit Warranty", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) == JOptionPane.OK_OPTION) {
+            try {
+                dao.updateWarranty(w.getAssetId(), nameField.getText(), LocalDate.parse(dateField.getText()), Integer.parseInt(monthsField.getText()));
+                refreshDashboard();
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Invalid input. Amount and Day must be numbers.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Invalid input data.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void showEditEmiDialog(Emi e) {
+        JTextField nameField = new JTextField(e.getItemName());
+        JTextField amountField = new JTextField(String.valueOf(e.getEmiAmount()));
+        JTextField dayField = new JTextField(String.valueOf(e.getDueDayOfMonth()));
+        Object[] message = { "Loan/EMI Name:", nameField, "EMI Amount (Rs):", amountField, "Due Day of Month (1-31):", dayField };
+
+        if (JOptionPane.showConfirmDialog(this, message, "Edit EMI", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) == JOptionPane.OK_OPTION) {
+            try {
+                dao.updateEmi(e.getAssetId(), nameField.getText(), Double.parseDouble(amountField.getText()), Integer.parseInt(dayField.getText()));
+                refreshDashboard();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Invalid input data.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
 
     public static void main(String[] args) {
+        try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception e) {}
         SwingUtilities.invokeLater(() -> new HomeTrackApp().setVisible(true));
     }
 }
 
 // --------------------------------------------------------
-// 2. Database Manager
+// 2. Database Manager (MySQL VERSION)
 // --------------------------------------------------------
 class DBManager {
-    private static final String URL = "jdbc:sqlite:hometrack.db";
+    // TODO: Update these to match your MySQL Workbench credentials
+    private static final String BASE_URL = "jdbc:mysql://localhost:3306/";
+    private static final String DB_NAME = "hometrack_db";
+    private static final String USER = "root"; 
+    private static final String PASS = "REPLACE_WITH_YOUR_MYSQL_PASSWORD"; // Replace with your MySQL password
 
     public static Connection getConnection() throws Exception {
-        return DriverManager.getConnection(URL);
+        return DriverManager.getConnection(BASE_URL + DB_NAME, USER, PASS);
     }
 
     public static void initializeDatabase() {
-        try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
-            // Assets Table (Parent)
-            stmt.execute("CREATE TABLE IF NOT EXISTS assets (" +
-                    "asset_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                    "category TEXT, name TEXT, purchase_date TEXT)");
+        try {
+            // 1. Connect to MySQL server and create the database if it doesn't exist
+            try (Connection conn = DriverManager.getConnection(BASE_URL, USER, PASS);
+                 Statement stmt = conn.createStatement()) {
+                stmt.executeUpdate("CREATE DATABASE IF NOT EXISTS " + DB_NAME);
+            }
 
-            // Warranties Table (Child)
-            stmt.execute("CREATE TABLE IF NOT EXISTS warranties (" +
-                    "warranty_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                    "asset_id INTEGER, warranty_months INTEGER, " +
-                    "FOREIGN KEY(asset_id) REFERENCES assets(asset_id))");
+            // 2. Connect to the specific database and create tables
+            try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
+                // MySQL uses AUTO_INCREMENT and VARCHAR/DATE
+                stmt.execute("CREATE TABLE IF NOT EXISTS assets (" +
+                        "asset_id INT PRIMARY KEY AUTO_INCREMENT, " +
+                        "category VARCHAR(50), name VARCHAR(255), purchase_date DATE)");
 
-            // EMI Table (Child)
-            stmt.execute("CREATE TABLE IF NOT EXISTS emi (" +
-                    "emi_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                    "asset_id INTEGER, emi_amount REAL, due_day INTEGER, " +
-                    "FOREIGN KEY(asset_id) REFERENCES assets(asset_id))");
+                // Added ON DELETE CASCADE to automatically clean up child rows if parent is deleted
+                stmt.execute("CREATE TABLE IF NOT EXISTS warranties (" +
+                        "warranty_id INT PRIMARY KEY AUTO_INCREMENT, " +
+                        "asset_id INT, warranty_months INT, " +
+                        "FOREIGN KEY(asset_id) REFERENCES assets(asset_id) ON DELETE CASCADE)");
 
-            System.out.println("SQLite DB Ready.");
-        } catch (Exception e) { e.printStackTrace(); }
+                stmt.execute("CREATE TABLE IF NOT EXISTS emi (" +
+                        "emi_id INT PRIMARY KEY AUTO_INCREMENT, " +
+                        "asset_id INT, emi_amount DOUBLE, due_day INT, " +
+                        "FOREIGN KEY(asset_id) REFERENCES assets(asset_id) ON DELETE CASCADE)");
+                
+                System.out.println("MySQL Database Connected & Ready.");
+            }
+        } catch (Exception e) { 
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(null, 
+                "Database connection failed!\nMake sure MySQL is running and credentials are correct.\n" + e.getMessage(), 
+                "MySQL Connection Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }
 
 // --------------------------------------------------------
-// 3. Data Access Object (DAO) - CRUD Operations
+// 3. Data Access Object (DAO) 
 // --------------------------------------------------------
 class DashboardDAO {
 
-    // --- CREATE ---
     public void addWarranty(String name, LocalDate purchaseDate, int months) {
         String insertAsset = "INSERT INTO assets (category, name, purchase_date) VALUES ('Warranty', ?, ?)";
         String insertWarranty = "INSERT INTO warranties (asset_id, warranty_months) VALUES (?, ?)";
@@ -206,13 +303,12 @@ class DashboardDAO {
              PreparedStatement pstmtWarranty = conn.prepareStatement(insertWarranty)) {
             
             pstmtAsset.setString(1, name);
-            pstmtAsset.setString(2, purchaseDate.toString());
+            pstmtAsset.setDate(2, java.sql.Date.valueOf(purchaseDate)); // MySQL Date Handling
             pstmtAsset.executeUpdate();
 
             ResultSet rs = pstmtAsset.getGeneratedKeys();
             if (rs.next()) {
-                int assetId = rs.getInt(1);
-                pstmtWarranty.setInt(1, assetId);
+                pstmtWarranty.setInt(1, rs.getInt(1));
                 pstmtWarranty.setInt(2, months);
                 pstmtWarranty.executeUpdate();
             }
@@ -228,13 +324,12 @@ class DashboardDAO {
              PreparedStatement pstmtEmi = conn.prepareStatement(insertEmi)) {
             
             pstmtAsset.setString(1, name);
-            pstmtAsset.setString(2, LocalDate.now().toString()); // fallback date
+            pstmtAsset.setDate(2, java.sql.Date.valueOf(LocalDate.now())); 
             pstmtAsset.executeUpdate();
 
             ResultSet rs = pstmtAsset.getGeneratedKeys();
             if (rs.next()) {
-                int assetId = rs.getInt(1);
-                pstmtEmi.setInt(1, assetId);
+                pstmtEmi.setInt(1, rs.getInt(1));
                 pstmtEmi.setDouble(2, amount);
                 pstmtEmi.setInt(3, dueDay);
                 pstmtEmi.executeUpdate();
@@ -242,21 +337,18 @@ class DashboardDAO {
         } catch (Exception e) { e.printStackTrace(); }
     }
 
-    // --- READ ---
     public List<Reminder> getAllReminders() {
         List<Reminder> reminders = new ArrayList<>();
         
-        // Read Warranties
         String sqlWarranties = "SELECT a.asset_id, a.name, a.purchase_date, w.warranty_months " +
                                "FROM assets a JOIN warranties w ON a.asset_id = w.asset_id";
         try (Connection conn = DBManager.getConnection(); Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(sqlWarranties)) {
             while (rs.next()) {
                 reminders.add(new Warranty(rs.getInt("asset_id"), rs.getString("name"), 
-                        LocalDate.parse(rs.getString("purchase_date")), rs.getInt("warranty_months")));
+                        rs.getDate("purchase_date").toLocalDate(), rs.getInt("warranty_months")));
             }
         } catch (Exception e) { e.printStackTrace(); }
 
-        // Read EMIs
         String sqlEmis = "SELECT a.asset_id, a.name, e.emi_amount, e.due_day " +
                          "FROM assets a JOIN emi e ON a.asset_id = e.asset_id";
         try (Connection conn = DBManager.getConnection(); Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(sqlEmis)) {
@@ -266,45 +358,63 @@ class DashboardDAO {
             }
         } catch (Exception e) { e.printStackTrace(); }
 
-        // Sort by nearest due date
         reminders.sort(Comparator.comparing(Reminder::getDueDate));
         return reminders;
     }
 
-    // --- UPDATE ---
-    public void updateAssetName(int assetId, String newName) {
-        String sql = "UPDATE assets SET name = ? WHERE asset_id = ?";
-        try (Connection conn = DBManager.getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, newName);
-            pstmt.setInt(2, assetId);
-            pstmt.executeUpdate();
+    public void updateWarranty(int assetId, String newName, LocalDate newDate, int newMonths) {
+        String updateAsset = "UPDATE assets SET name = ?, purchase_date = ? WHERE asset_id = ?";
+        String updateWarranty = "UPDATE warranties SET warranty_months = ? WHERE asset_id = ?";
+
+        try (Connection conn = DBManager.getConnection();
+             PreparedStatement pstmtAsset = conn.prepareStatement(updateAsset);
+             PreparedStatement pstmtWarranty = conn.prepareStatement(updateWarranty)) {
+            
+            pstmtAsset.setString(1, newName);
+            pstmtAsset.setDate(2, java.sql.Date.valueOf(newDate));
+            pstmtAsset.setInt(3, assetId);
+            pstmtAsset.executeUpdate();
+
+            pstmtWarranty.setInt(1, newMonths);
+            pstmtWarranty.setInt(2, assetId);
+            pstmtWarranty.executeUpdate();
+
         } catch (Exception e) { e.printStackTrace(); }
     }
 
-    // --- DELETE ---
-    public void deleteAsset(int assetId, String category) {
-        String delChild = category.equals("Warranty") ? 
-                "DELETE FROM warranties WHERE asset_id = ?" : "DELETE FROM emi WHERE asset_id = ?";
-        String delParent = "DELETE FROM assets WHERE asset_id = ?";
+    public void updateEmi(int assetId, String newName, double newAmount, int newDay) {
+        String updateAsset = "UPDATE assets SET name = ? WHERE asset_id = ?";
+        String updateEmi = "UPDATE emi SET emi_amount = ?, due_day = ? WHERE asset_id = ?";
 
-        try (Connection conn = DBManager.getConnection(); 
-             PreparedStatement pstmtChild = conn.prepareStatement(delChild);
-             PreparedStatement pstmtParent = conn.prepareStatement(delParent)) {
+        try (Connection conn = DBManager.getConnection();
+             PreparedStatement pstmtAsset = conn.prepareStatement(updateAsset);
+             PreparedStatement pstmtEmi = conn.prepareStatement(updateEmi)) {
             
-            // Delete from child table (EMI/Warranty)
-            pstmtChild.setInt(1, assetId);
-            pstmtChild.executeUpdate();
+            pstmtAsset.setString(1, newName);
+            pstmtAsset.setInt(2, assetId);
+            pstmtAsset.executeUpdate();
 
-            // Delete from parent table (Assets)
+            pstmtEmi.setDouble(1, newAmount);
+            pstmtEmi.setInt(2, newDay);
+            pstmtEmi.setInt(3, assetId);
+            pstmtEmi.executeUpdate();
+
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    public void deleteAsset(int assetId, String category) {
+        // Since we added ON DELETE CASCADE in MySQL, deleting the parent removes the children automatically.
+        String delParent = "DELETE FROM assets WHERE asset_id = ?";
+        try (Connection conn = DBManager.getConnection(); 
+             PreparedStatement pstmtParent = conn.prepareStatement(delParent)) {
             pstmtParent.setInt(1, assetId);
             pstmtParent.executeUpdate();
-            
         } catch (Exception e) { e.printStackTrace(); }
     }
 }
 
 // --------------------------------------------------------
-// 4. OOP Models (Interfaces, Inheritance, Polymorphism)
+// 4. OOP Models 
 // --------------------------------------------------------
 interface Reminderable {
     LocalDate getDueDate();
@@ -326,13 +436,10 @@ abstract class Reminder implements Reminderable {
     public int getAssetId() { return assetId; }
     public String getItemName() { return itemName; }
     public String getCategory() { return category; }
-
     public abstract String getDetails();
 
     @Override
-    public long getDaysRemaining() {
-        return ChronoUnit.DAYS.between(LocalDate.now(), getDueDate());
-    }
+    public long getDaysRemaining() { return ChronoUnit.DAYS.between(LocalDate.now(), getDueDate()); }
 
     @Override
     public String getStatusColor() {
@@ -352,12 +459,11 @@ class Warranty extends Reminder {
         this.purchaseDate = purchaseDate;
         this.warrantyMonths = warrantyMonths;
     }
-
-    @Override
-    public LocalDate getDueDate() { return purchaseDate.plusMonths(warrantyMonths); }
-
-    @Override
-    public String getDetails() { return "Expires: " + getDueDate() + " (" + getDaysRemaining() + " days left)"; }
+    
+    public LocalDate getPurchaseDate() { return purchaseDate; }
+    public int getWarrantyMonths() { return warrantyMonths; }
+    @Override public LocalDate getDueDate() { return purchaseDate.plusMonths(warrantyMonths); }
+    @Override public String getDetails() { return "Expires: " + getDueDate() + " (" + getDaysRemaining() + " days left)"; }
 }
 
 class Emi extends Reminder {
@@ -369,14 +475,13 @@ class Emi extends Reminder {
         this.dueDayOfMonth = dueDayOfMonth;
         this.emiAmount = emiAmount;
     }
-
-    @Override
-    public LocalDate getDueDate() {
+    
+    public int getDueDayOfMonth() { return dueDayOfMonth; }
+    public double getEmiAmount() { return emiAmount; }
+    @Override public LocalDate getDueDate() {
         LocalDate today = LocalDate.now();
         LocalDate dueDateThisMonth = today.withDayOfMonth(dueDayOfMonth);
         return today.isAfter(dueDateThisMonth) ? dueDateThisMonth.plusMonths(1) : dueDateThisMonth;
     }
-
-    @Override
-    public String getDetails() { return "Amount: Rs." + emiAmount + " | Due: " + getDueDate(); }
+    @Override public String getDetails() { return "Amount: Rs." + emiAmount + " | Next Due: " + getDueDate(); }
 }
