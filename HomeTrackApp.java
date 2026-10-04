@@ -246,7 +246,7 @@ class DBManager {
     private static final String BASE_URL = "jdbc:mysql://localhost:3306/";
     private static final String DB_NAME = "hometrack_db";
     private static final String USER = "root"; 
-    private static final String PASS = ""; // Replace with your MySQL password
+    private static final String PASS = "REPLACE_WITH_YOUR_MYSQL_PASSWORD"; // Replace with your MySQL password
 
     public static Connection getConnection() throws Exception {
         return DriverManager.getConnection(BASE_URL + DB_NAME, USER, PASS);
