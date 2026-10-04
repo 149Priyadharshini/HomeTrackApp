@@ -59,11 +59,15 @@ public class HomeTrackApp extends JFrame {
     }
     
     private void styleButton(JButton btn, Color bgColor) {
-        btn.setBackground(bgColor);
-        btn.setForeground(Color.WHITE);
-        btn.setFocusPainted(false);
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
-    }
+    btn.setBackground(bgColor);
+    btn.setForeground(Color.WHITE);
+    btn.setFocusPainted(false);
+    btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+    
+    // Add these two lines to force the background color to render
+    btn.setOpaque(true);
+    btn.setBorderPainted(false);
+}
 
     private void refreshDashboard() {
         dashboardPanel.removeAll();
@@ -242,7 +246,7 @@ class DBManager {
     private static final String BASE_URL = "jdbc:mysql://localhost:3306/";
     private static final String DB_NAME = "hometrack_db";
     private static final String USER = "root"; 
-    private static final String PASS = "ReplaceWithYourPassword"; // Replace with your MySQL password
+    private static final String PASS = ""; // Replace with your MySQL password
 
     public static Connection getConnection() throws Exception {
         return DriverManager.getConnection(BASE_URL + DB_NAME, USER, PASS);
